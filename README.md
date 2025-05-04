@@ -1,0 +1,2 @@
+# sharedparts-binaries
+composeを利用した共通Viewのバイナリ公開用リポジトリ
