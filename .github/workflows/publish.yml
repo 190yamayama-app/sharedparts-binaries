@@ -1,8 +1,11 @@
 name: Publish Binaries
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of the release'
+        required: true
 
 jobs:
   publish:
@@ -15,8 +18,8 @@ jobs:
         run: |
           PRIVATE_REPO_OWNER="${{ secrets.PRIVATE_REPO_OWNER }}"
           PRIVATE_REPO_NAME="${{ secrets.PRIVATE_REPO_NAME }}"
-          VERSION="${{ github.event.release.tag_name }}"
-          ZIP_FILE="Shared-${{ github.event.release.tag_name }}.zip"
+          VERSION="${{ github.event.inputs.version }}"
+          ZIP_FILE="Shared-${{ github.event.inputs.version }}.zip"
           RELEASE_URL="https://github.com/$PRIVATE_REPO_OWNER/$PRIVATE_REPO_NAME/releases/download/$VERSION/$ZIP_FILE"
 
           echo "Downloading $ZIP_FILE from $RELEASE_URL"
