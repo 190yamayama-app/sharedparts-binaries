@@ -1,0 +1,52 @@
+name: Publish Binaries
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download ZIP from private release
+        run: |
+          PRIVATE_REPO_OWNER="${{ secrets.PRIVATE_REPO_OWNER }}"
+          PRIVATE_REPO_NAME="${{ secrets.PRIVATE_REPO_NAME }}"
+          VERSION="${{ github.event.release.tag_name }}"
+          ZIP_FILE="Shared-${{ github.event.release.tag_name }}.zip"
+          RELEASE_URL="https://github.com/$PRIVATE_REPO_OWNER/$PRIVATE_REPO_NAME/releases/download/$VERSION/$ZIP_FILE"
+
+          echo "Downloading $ZIP_FILE from $RELEASE_URL"
+          curl -L -H "Authorization: token ${{ secrets.PRIVATE_REPO_READ_TOKEN }}" "$RELEASE_URL" -o "$ZIP_FILE"
+          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
+
+      - name: Generate Checksum
+        run: |
+          CHECKSUM=$(shasum -a 256 ${{ env.ZIP_FILE }} | awk '{print $1}')
+          echo "CHECKSUM=$CHECKSUM" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          release_name: Release ${{ github.event.release.tag_name }}
+          body: |
+            プライベートリポジトリから公開されたバイナリです。
+            Checksum (SHA256): ${{ env.CHECKSUM }}
+          draft: false
+          prerelease: ${{ github.event.release.prerelease }}
+
+      - name: Upload ZIP to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_github_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_FILE }}
+          asset_name: ${{ env.ZIP_FILE }}
+          asset_content_type: application/zip
