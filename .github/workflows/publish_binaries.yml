@@ -1,4 +1,4 @@
-name: Publish Binaries
+name: publish_binaries
 
 on:
   workflow_dispatch:
@@ -36,13 +36,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.event.release.tag_name }}
-          release_name: Release ${{ github.event.release.tag_name }}
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: Release ${{ github.event.inputs.version }}
           body: |
             プライベートリポジトリから公開されたバイナリです。
             Checksum (SHA256): ${{ env.CHECKSUM }}
           draft: false
-          prerelease: ${{ github.event.release.prerelease }}
+          prerelease: false
 
       - name: Upload ZIP to Release
         uses: actions/upload-release-asset@v1
