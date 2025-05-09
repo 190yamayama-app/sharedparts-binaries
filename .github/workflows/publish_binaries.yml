@@ -21,7 +21,6 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           ZIP_FILE="Shared-${{ github.event.inputs.version }}.zip"
           RELEASE_URL="https://github.com/$PRIVATE_REPO_OWNER/$PRIVATE_REPO_NAME/releases/download/$VERSION/$ZIP_FILE"
-
           echo "Downloading $ZIP_FILE from $RELEASE_URL"
           curl -L -H "Authorization: token ${{ secrets.PRIVATE_REPO_READ_TOKEN }}" "$RELEASE_URL" -o "$ZIP_FILE"
           echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
@@ -32,9 +31,10 @@ jobs:
           echo "CHECKSUM=$CHECKSUM" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
+        id: create_release  # ← ID を追加
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PUBLIC_REPO_DISPATCH_TOKEN }}  # PAT or GITHUB_TOKEN
         with:
           tag_name: ${{ github.event.inputs.version }}
           release_name: Release ${{ github.event.inputs.version }}
@@ -47,9 +47,9 @@ jobs:
       - name: Upload ZIP to Release
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PUBLIC_REPO_DISPATCH_TOKEN }}
         with:
-          upload_url: ${{ steps.create_github_release.outputs.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ env.ZIP_FILE }}
           asset_name: ${{ env.ZIP_FILE }}
           asset_content_type: application/zip
