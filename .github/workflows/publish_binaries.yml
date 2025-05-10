@@ -19,10 +19,18 @@ jobs:
           PRIVATE_REPO_OWNER="${{ secrets.PRIVATE_REPO_OWNER }}"
           PRIVATE_REPO_NAME="${{ secrets.PRIVATE_REPO_NAME }}"
           VERSION="${{ github.event.inputs.version }}"
-          ZIP_FILE="Shared-${{ github.event.inputs.version }}.zip"
+          ZIP_FILE="Shared-${VERSION}.zip"
           RELEASE_URL="https://github.com/$PRIVATE_REPO_OWNER/$PRIVATE_REPO_NAME/releases/download/$VERSION/$ZIP_FILE"
           echo "Downloading $ZIP_FILE from $RELEASE_URL"
-          curl -L -H "Authorization: token ${{ secrets.REPO_READ_TOKEN }}" "$RELEASE_URL" -o "$ZIP_FILE"
+          http_status=$(curl -s -w "%{http_code}" -L -H "Authorization: token ${{ secrets.REPO_READ_TOKEN }}" "$RELEASE_URL" -o "$ZIP_FILE")
+          if [ "$http_status" -ne 200 ]; then
+            echo "::error::Failed to download zip (HTTP status: $http_status)"
+            exit 1
+          fi
+          if [ ! -s "$ZIP_FILE" ]; then
+            echo "::error::Downloaded file is empty or invalid"
+            exit 1
+          fi
           echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
 
       - name: Generate Checksum
