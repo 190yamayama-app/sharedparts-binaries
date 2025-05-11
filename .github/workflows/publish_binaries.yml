@@ -14,24 +14,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download ZIP from private release
+      - name: Download ZIP from private release (via GitHub API)
         run: |
-          PRIVATE_REPO_OWNER="${{ secrets.PRIVATE_REPO_OWNER }}"
-          PRIVATE_REPO_NAME="${{ secrets.PRIVATE_REPO_NAME }}"
+          set -e
+          OWNER="${{ secrets.PRIVATE_REPO_OWNER }}"
+          REPO="${{ secrets.PRIVATE_REPO_NAME }}"
           VERSION="${{ github.event.inputs.version }}"
-          ZIP_FILE="Shared-${VERSION}.zip"
-          RELEASE_URL="https://github.com/$PRIVATE_REPO_OWNER/$PRIVATE_REPO_NAME/releases/download/$VERSION/$ZIP_FILE"
-          echo "Downloading $ZIP_FILE from $RELEASE_URL"
-          http_status=$(curl -s -w "%{http_code}" -L -H "Authorization: token ${{ secrets.REPO_READ_TOKEN }}" "$RELEASE_URL" -o "$ZIP_FILE")
-          if [ "$http_status" -ne 200 ]; then
-            echo "::error::Failed to download zip (HTTP status: $http_status)"
+          ZIP_NAME="Shared-${VERSION}.zip"
+          API_URL="https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${VERSION}"
+          echo "Fetching release info for tag: $VERSION"
+          response=$(curl -s -H "Authorization: token ${{ secrets.REPO_READ_TOKEN }}" "$API_URL")
+          # Extract asset download URL
+          download_url=$(echo "$response" | jq -r ".assets[] | select(.name == \"$ZIP_NAME\") | .url")
+          if [ -z "$download_url" ] || [ "$download_url" == "null" ]; then
+            echo "::error::Asset $ZIP_NAME not found in release $VERSION"
             exit 1
           fi
-          if [ ! -s "$ZIP_FILE" ]; then
-            echo "::error::Downloaded file is empty or invalid"
-            exit 1
-          fi
-          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
+          echo "Downloading from $download_url"
+          curl -L \
+            -H "Authorization: token ${{ secrets.REPO_READ_TOKEN }}" \
+            -H "Accept: application/octet-stream" \
+            "$download_url" -o "$ZIP_NAME"
+          echo "ZIP_FILE=$ZIP_NAME" >> "$GITHUB_ENV"
 
       - name: Generate Checksum
         run: |
